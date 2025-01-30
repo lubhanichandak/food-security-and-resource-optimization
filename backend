@@ -1,0 +1,235 @@
+import zipfile
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import tkinter as tk
+from tkinter import filedialog, messagebox, simpledialog, Frame, Text, Scrollbar
+import nltk
+from nltk.chat.util import Chat, reflections
+
+# Download necessary resources for the chatbot
+nltk.download('punkt')
+
+# Define chatbot pairs
+pairs = [
+    (r"hi|hello|hey", ["Hello! How can I assist you today?", "Hey there! How can I help?"]),
+    (r"what is your name?", ["I am a chatbot created by you.", "I'm just a bot, but I don't mind being called Bot!"]),
+    (r"how are you?", ["I'm just a bot, but I'm doing well. How about you?", "I'm great, thanks for asking!"]),
+    (r"sorry", ["No worries!", "It's okay, no problem."]),
+    (r"quit", ["Goodbye! Have a great day!", "Bye! Feel free to come back anytime."]),
+    (r"(.*)", ["Sorry, I didn't understand that. Can you rephrase?"])  # Default response
+]
+
+class FoodSecurityApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Food Security and Resource Optimization")
+        self.resources = {}
+        self.reward_points = 0  # Initialize reward points
+
+        self.setup_ui()
+
+    def setup_ui(self):
+        # Labels and entries for adding resources
+        tk.Label(self.root, text="Resource Name:").grid(row=0, column=0)
+        tk.Label(self.root, text="Quantity:").grid(row=1, column=0)
+
+        self.resource_name_entry = tk.Entry(self.root)
+        self.quantity_entry = tk.Entry(self.root)
+
+        self.resource_name_entry.grid(row=0, column=1)
+        self.quantity_entry.grid(row=1, column=1)
+
+        tk.Button(self.root, text="Add Resource", command=self.add_resource).grid(row=2, column=0, columnspan=2)
+
+
+
+        # Listbox to display resources
+        self.resource_listbox = tk.Listbox(self.root)
+        self.resource_listbox.grid(row=3, column=0, columnspan=2)
+
+        # Button to optimize resources
+        tk.Button(self.root, text="Optimize Resources", command=self.optimize_resources).grid(row=4, column=0, columnspan=2)
+
+        # Button to open CSV analyzer
+        tk.Button(self.root, text="Open CSV Analyzer", command=self.select_zip_file).grid(row=5, column=0, columnspan=2)
+
+        # Button to start chatbot
+        tk.Button(self.root, text="Chat with Bot", command=self.start_chatbot).grid(row=6, column=0, columnspan=2)
+
+        # Display reward points
+        self.reward_label = tk.Label(self.root, text=f"Reward Points: {self.reward_points}")
+        self.reward_label.grid(row=7, column=0, columnspan=2)
+
+        # Chat display area
+        self.chat_area = Text(self.root, height=10, width=50)
+        self.chat_area.grid(row=8, column=0, columnspan=2)
+        self.chat_area.config(state=tk.DISABLED)  # Disable editing of chat area
+
+    def add_resource(self):
+        resource_name = self.resource_name_entry.get()
+        try:
+            quantity = int(self.quantity_entry.get())
+            if resource_name and quantity > 0:
+                self.resources[resource_name] = quantity
+                self.update_resource_listbox()
+                self.reward_points += 10  # Add 10 points for adding a resource
+                self.update_reward_label()
+            else:
+                messagebox.showwarning("Invalid Input", "Please enter a valid resource name and quantity.")
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Quantity should be a positive integer.")
+
+    def update_resource_listbox(self):
+        self.resource_listbox.delete(0, tk.END)
+        for resource, quantity in self.resources.items():
+            self.resource_listbox.insert(tk.END, f"{resource}: {quantity}")
+
+    def optimize_resources(self):
+        # Example optimization logic: Distribute resources evenly (you can implement more complex algorithms)
+        total_resources = sum(self.resources.values())
+        num_resources = len(self.resources)
+        if num_resources == 0:
+            messagebox.showinfo("No Resources", "Please add some resources first.")
+            return
+
+        average = total_resources // num_resources
+
+        result = f"Each resource should be allocated approximately {average} units."
+        messagebox.showinfo("Optimization Result", result)
+
+    def update_reward_label(self):
+        self.reward_label.config(text=f"Reward Points: {self.reward_points}")
+
+    def select_zip_file(self):
+        """Opens a file dialog to select a zip file."""
+        zip_file_path = filedialog.askopenfilename(title="Select a Zip File", filetypes=[("Zip files", "*.zip")])
+        if zip_file_path:
+            messagebox.showinfo("Info", "Analyzing CSV files, please wait...")
+            self.analyze_zip_file(zip_file_path)
+            messagebox.showinfo("Success", "CSV files have been analyzed.")
+
+    def analyze_zip_file(self, zip_file_path):
+        """Extracts and analyzes CSV files from the given zip file."""
+        extract_to = "extracted_files"
+        os.makedirs(extract_to, exist_ok=True)
+
+        self.extract_zip(zip_file_path, extract_to)
+
+        for filename in os.listdir(extract_to):
+            file_path = os.path.join(extract_to, filename)
+            if filename.endswith('.csv'):
+                self.analyze_csv(file_path)
+            else:
+                print(f"{filename} is not a CSV file and will be skipped.")
+
+    def extract_zip(self, zip_file_path, extract_to):
+        """Extracts the contents of a zip file to a specified directory."""
+        with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_to)
+        print(f"Extracted {zip_file_path} to {extract_to}")
+
+    def analyze_csv(self, file_path):
+        """Analyzes a CSV file and prints basic statistics, including plots."""
+        try:
+            df = pd.read_csv(file_path)
+            print(f"\nAnalysis of {file_path}:")
+            print("First 5 rows:")
+            print(df.head())
+            print("\nSummary Statistics:")
+            print(df.describe())
+
+            # Plotting
+            self.plot_data(df)
+
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
+
+    def plot_data(self, df):
+        """Generates plots for the given DataFrame."""
+        if df.empty:
+            print("DataFrame is empty. No plots will be generated.")
+            return
+
+        numerical_cols = df.select_dtypes(include=['float64', 'int64']).columns
+        if len(numerical_cols) == 0:
+            print("No numerical columns found for plotting.")
+            return
+
+        # Ask user for plot types
+        plot_types = simpledialog.askstring("Input", "Enter plot types (hist, scatter, box, pair) separated by commas:")
+        plot_types = [p.strip() for p in plot_types.split(',')]
+
+        for plot_type in plot_types:
+            if plot_type == 'hist':
+                for col in numerical_cols:
+                    plt.figure(figsize=(10, 5))
+                    sns.histplot(df[col], bins=30, kde=True)
+                    plt.title(f'Distribution of {col}', fontsize=16)
+                    plt.xlabel(col, fontsize=14)
+                    plt.ylabel('Frequency', fontsize=14)
+                    plt.grid()
+                    plt.show()
+
+            elif plot_type == 'scatter' and len(numerical_cols) >= 2:
+                plt.figure(figsize=(10, 5))
+                sns.scatterplot(data=df, x=numerical_cols[0], y=numerical_cols[1])
+                plt.title(f'Scatter Plot: {numerical_cols[0]} vs {numerical_cols[1]}', fontsize=16)
+                plt.xlabel(numerical_cols[0], fontsize=14)
+                plt.ylabel(numerical_cols[1], fontsize=14)
+                plt.grid()
+                plt.show()
+
+            elif plot_type == 'box':
+                for col in numerical_cols:
+                    plt.figure(figsize=(10, 5))
+                    sns.boxplot(x=df[col])
+                    plt.title(f'Box Plot of {col}', fontsize=16)
+                    plt.xlabel(col, fontsize=14)
+                    plt.grid()
+                    plt.show()
+
+            elif plot_type == 'pair':
+                sns.pairplot(df[numerical_cols])
+                plt.title('Pair Plot of Numerical Features', fontsize=16)
+                plt.show()
+
+            else:
+                print(f"Plot type '{plot_type}' is not recognized or not applicable.")
+
+    def start_chatbot(self):
+        """Start the chatbot interaction."""
+        self.chat_area.config(state=tk.NORMAL)
+        self.chat_area.insert(tk.END, "Bot: Hello! How can I help you today?\n")
+        self.chat_area.config(state=tk.DISABLED)
+        self.chat_area.yview(tk.END)
+
+        # Handle user input through a separate method
+        def chat():
+            chatbot = Chat(pairs, reflections)
+            while True:
+                # Simple input dialog for the chatbot
+                user_input = simpledialog.askstring("Chat with Bot", "Your Message:")
+                if user_input:
+                    response = chatbot.respond(user_input)
+                    self.chat_area.config(state=tk.NORMAL)
+                    self.chat_area.insert(tk.END, f"You: {user_input}\nBot: {response}\n")
+                    self.chat_area.config(state=tk.DISABLED)
+                    self.chat_area.yview(tk.END)
+                if user_input.lower() == "quit":
+                    break
+
+        chat()  # Start the chatbot when the button is clicked
+
+
+if __name__ == "__main__":
+    # Create the main application window
+    root = tk.Tk()
+    app = FoodSecurityApp(root)
+    root.geometry("500x500")
+    root.mainloop()
+
+
+
+
