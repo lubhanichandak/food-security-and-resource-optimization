@@ -1,0 +1,124 @@
+import tkinter as tk
+from tkinter import messagebox, simpledialog
+
+class FoodSecurityApp:
+    def _init_(self, root):
+        self.root = root
+        self.root.title("Food Security and Resource Optimization")
+        
+        self.resources = {}
+        
+        self.setup_ui()
+        
+    def setup_ui(self):
+        # Labels and entries for adding resources
+        tk.Label(self.root, text="Resource Name:").grid(row=0, column=0)
+        tk.Label(self.root, text="Quantity:").grid(row=1, column=0)
+        
+        self.resource_name_entry = tk.Entry(self.root)
+        self.quantity_entry = tk.Entry(self.root)
+        
+        self.resource_name_entry.grid(row=0, column=1)
+        self.quantity_entry.grid(row=1, column=1)
+        
+        tk.Button(self.root, text="Add Resource", command=self.add_resource).grid(row=2, column=0, columnspan=2)
+        
+        # Listbox to display resources
+        self.resource_listbox = tk.Listbox(self.root)
+        self.resource_listbox.grid(row=3, column=0, columnspan=2)
+        
+        # Button to optimize resources
+        tk.Button(self.root, text="Optimize Resources", command=self.optimize_resources).grid(row=4, column=0, columnspan=2)
+        
+        # Integrate Chatbot
+        tk.Button(self.root, text="Open Chatbot", command=self.open_chatbot).grid(row=5, column=0, columnspan=2)
+        
+    def add_resource(self):
+        resource_name = self.resource_name_entry.get()
+        try:
+            quantity = int(self.quantity_entry.get())
+            if resource_name and quantity > 0:
+                self.resources[resource_name] = quantity
+                self.update_resource_listbox()
+            else:
+                messagebox.showwarning("Invalid Input", "Please enter a valid resource name and quantity.")
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Quantity should be a positive integer.")
+        
+    def update_resource_listbox(self):
+        self.resource_listbox.delete(0, tk.END)
+        for resource, quantity in self.resources.items():
+            self.resource_listbox.insert(tk.END, f"{resource}: {quantity}")
+            
+    def optimize_resources(self):
+        total_resources = sum(self.resources.values())
+        num_resources = len(self.resources)
+        if num_resources == 0:  
+            messagebox.showinfo("No Resources", "Please add some resources first.")
+            return
+        
+        average = total_resources // num_resources
+        
+        result = f"Each resource should be allocated approximately {average} units."
+        messagebox.showinfo("Optimization Result", result)
+    
+    def open_chatbot(self):
+        chatbot_window = tk.Toplevel(self.root)
+        chatbot_window.title("Chatbot")
+        chatbot = Chatbot(chatbot_window)
+
+class Chatbot:
+    def _init_(self, master):
+        self.master = master
+        self.name = ""
+        self.contact_details = ""
+        self.contributions = 0
+        self.points = 0
+        
+        self.setup_ui()
+        
+    def setup_ui(self):
+        tk.Label(self.master, text="Chatbot").grid(row=0, column=0, columnspan=2)
+        tk.Button(self.master, text="Start Chatbot", command=self.start_chatbot).grid(row=1, column=0, columnspan=2)
+        
+    def start_chatbot(self):
+        self.ask_name()
+        self.ask_contact_details()
+        self.ask_contribution()
+    
+    def ask_name(self):
+        self.name = simpledialog.askstring("Name", "Hello! What's your name?")
+        if self.name:
+            messagebox.showinfo("Welcome", f"Hello, {self.name}!")
+        
+    def ask_contact_details(self):
+        while True:
+            self.contact_details = simpledialog.askstring("Contact Details", f"{self.name}, may I have your 10-digit contact number?")
+            if self.contact_details and len(self.contact_details) == 10 and self.contact_details.isdigit():
+                break
+            else:
+                messagebox.showwarning("Invalid Input", "Please enter a valid 10-digit number.")
+
+    def ask_contribution(self):
+        while True:
+            try:
+                contribution = simpledialog.askinteger("Contribution", f"Thank you, {self.name}. What have you contributed (quantity)?")
+                if contribution is not None:
+                    self.contributions += contribution
+                    if self.contributions >= 20:
+                        self.points += 10
+                        messagebox.showinfo("Points Earned", f"Great! You've earned 10 points. You now have {self.points} points.")
+                        self.show_offers()
+                if simpledialog.askstring("Continue", "Do you want to continue or quit? (continue/quit)") == 'quit':
+                    messagebox.showinfo("Goodbye", "Goodbye, have a great day!")
+                    break
+            except (TypeError, ValueError):
+                messagebox.showwarning("Invalid Input", "Please enter a valid quantity.")
+
+    def show_offers(self):
+        messagebox.showinfo("Offers", "You can use your points for various offers. For example:\n1. 20% off on every product you purchase from Amazon with code: AMAZ20\n2. Other company offers coming soon!")
+
+if _name_ == "_main_":
+    root = tk.Tk()
+    app = FoodSecurityApp(root)
+    root.mainloop()
